@@ -5,20 +5,15 @@
 #include <ctime>
 #include <conio.h>
 #include <windows.h>
+#include "zipfun/zipfun.h"
 
-int main() {
-    // Hide the cursor
-    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO cursorInfo;
-    GetConsoleCursorInfo(consoleHandle, &cursorInfo);
-    cursorInfo.bVisible = FALSE;
-    SetConsoleCursorInfo(consoleHandle, &cursorInfo);
-    
-    // Display the initial message
-    std::cout << "You can't read this!" << std::endl;
-    std::cout << "Press Enter to exit the application." << std::endl;
-    std::cout << "Current time: ";
-    
+// Example function to be encrypted
+int add_numbers(int a, int b) {
+    return a + b;
+}
+extern "C" void add_numbers_end() {}
+
+void print_time() {
     // Loop to update time every second
     while (true) {
         // Get current time using time_t (more compatible)
@@ -38,6 +33,41 @@ int main() {
         // Wait for 1 second using sleep
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+}
+
+int main() {
+    // Hide the cursor
+    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_CURSOR_INFO cursorInfo;
+    GetConsoleCursorInfo(consoleHandle, &cursorInfo);
+    cursorInfo.bVisible = FALSE;
+    SetConsoleCursorInfo(consoleHandle, &cursorInfo);
+    
+    // Display the initial message
+    std::cout << "You can't read this!" << std::endl;
+    std::cout << "Press Enter to exit the application." << std::endl;
+    std::cout << "Current time: ";
+    
+    // Demonstrate ZipFun functionality
+    std::cout << std::endl << "Testing ZipFun encryption..." << std::endl;
+    
+    // Calculate function size using marker
+    size_t add_numbers_size = (size_t)((char*)add_numbers_end - (char*)add_numbers);
+    // Create ZipFun instance with the add_numbers function and its size
+    ZipFun zip_add(reinterpret_cast<void*>(add_numbers), add_numbers_size);
+    
+    // Test the encrypted function
+    zip_add.decrypt_function();
+    auto func = reinterpret_cast<int(*)(int, int)>(zip_add.get_function_ptr());
+    int result = func(5, 3);
+    zip_add.re_encrypt_function();
+    
+    std::cout << "Encrypted function result: 5 + 3 = " << result << std::endl;
+    
+    std::cout << "Press Enter to continue to time display..." << std::endl;
+    std::cin.get();
+    
+    print_time();
     
     // Restore the cursor
     cursorInfo.bVisible = TRUE;
