@@ -10,9 +10,9 @@ private:
     std::string function_id;
     std::vector<unsigned char> encrypted_code;
     std::vector<unsigned char> function_copy;
-    size_t function_size;
     void* original_function_ptr;
     void* function_copy_ptr;
+    size_t function_size;
     
     // Helper methods
     std::string generate_function_id(const void* func_ptr);
@@ -36,5 +36,24 @@ public:
     // Get the copy function pointer for casting
     void* get_function_ptr() const { return function_copy_ptr; }
 };
+
+// Macro to declare a function with ZipFun wrapper
+#define ZIPFUN_DECLARE(name, ret_type, ...) \
+    ret_type name(__VA_ARGS__); \
+    extern "C" void name##_end(); \
+    extern ZipFun name##_zip
+
+// Macro to define a function with ZipFun wrapper
+#define ZIPFUN_DEFINE(name, ret_type, ...) \
+    ret_type name(__VA_ARGS__); \
+    extern "C" void name##_end() {} \
+    ZipFun name##_zip(reinterpret_cast<void*>(name), (size_t)((char*)name##_end - (char*)name)); \
+    ret_type name(__VA_ARGS__)
+
+// Simple macro for single-file usage
+#define ZIPFUN(name, ret_type, ...) \
+    ret_type name(__VA_ARGS__); \
+    extern "C" void name##_end() {} \
+    ret_type name(__VA_ARGS__)
 
 #endif // ZIPFUN_H 

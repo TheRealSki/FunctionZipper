@@ -11,21 +11,32 @@ The ZipFun library provides a class that can encrypt, execute, and re-encrypt fu
 - **Template Support**: Works with any function signature
 - **Minimal Overhead**: Optimized for minimal execution time impact
 - **Original Function Protection**: Original function is never modified or called directly
+- **Manual Function Size Detection**: Uses end markers for accurate function size calculation
 
-### Usage Example
+### Usage Examples
+
+#### Manual Usage (Recommended)
 ```cpp
 #include "zipfun/zipfun.h"
 
+// Define function with end marker
 int add_numbers(int a, int b) {
     return a + b;
 }
+extern "C" void add_numbers_end() {}
 
 int main() {
-    // Create ZipFun instance with function pointer
-    ZipFun zip_add(add_numbers);
+    // Calculate function size using marker
+    size_t size = (size_t)((char*)add_numbers_end - (char*)add_numbers);
+    
+    // Create ZipFun instance
+    ZipFun add_numbers_zip(reinterpret_cast<void*>(add_numbers), size);
     
     // Execute the encrypted function
-    int result = zip_add.RunFunction(5, 3); // Returns 8
+    add_numbers_zip.decrypt_function();
+    auto func = reinterpret_cast<int(*)(int, int)>(add_numbers_zip.get_function_ptr());
+    int result = func(5, 3);
+    add_numbers_zip.re_encrypt_function();
     return 0;
 }
 ```
@@ -47,7 +58,7 @@ This repository also includes a simple console application that demonstrates bot
 - Shows current time in YYYY-MM-DD HH:MM:SS format
 - Updates time every second on a single line (overwrites previous time)
 - Hides cursor during execution for cleaner display
-- Demonstrates ZipFun library functionality
+- Demonstrates ZipFun library functionality with manual function wrapping
 - Displays friendly instructions to press Enter to exit
 - Graceful exit with thank you message and cursor restoration
 - Runs continuously until user presses Enter
@@ -74,7 +85,7 @@ This repository also includes a simple console application that demonstrates bot
 
 ### Using the Application
 1. The application will start and display the initial message
-2. ZipFun library demonstration will run
+2. ZipFun library demonstration will run using manual function wrapping
 3. The cursor will be hidden for a cleaner display
 4. The current time will be shown and update every second on the same line
 5. Press **Enter** to exit the application
@@ -84,7 +95,7 @@ This repository also includes a simple console application that demonstrates bot
 Press **Enter** to gracefully exit the application. The cursor will be automatically restored.
 
 ### Files
-- `main.cpp` - Main application source with ZipFun demonstration
+- `main.cpp` - Main application source with ZipFun demonstration using manual wrapping
 - `zipfun/zipfun.h` - ZipFun class header
 - `zipfun/zipfun.cpp` - ZipFun class implementation
 - `zipfun/Makefile` - Build script for Unix-like systems

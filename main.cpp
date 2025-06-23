@@ -51,16 +51,15 @@ int main() {
     // Demonstrate ZipFun functionality
     std::cout << std::endl << "Testing ZipFun encryption..." << std::endl;
     
-    // Calculate function size using marker
+    // Create ZipFun instance after function is defined
     size_t add_numbers_size = (size_t)((char*)add_numbers_end - (char*)add_numbers);
-    // Create ZipFun instance with the add_numbers function and its size
-    ZipFun zip_add(reinterpret_cast<void*>(add_numbers), add_numbers_size);
+    ZipFun add_numbers_zip(reinterpret_cast<void*>(add_numbers), add_numbers_size);
     
     // Test the encrypted function
-    zip_add.decrypt_function();
-    auto func = reinterpret_cast<int(*)(int, int)>(zip_add.get_function_ptr());
+    add_numbers_zip.decrypt_function();
+    auto func = reinterpret_cast<int(*)(int, int)>(add_numbers_zip.get_function_ptr());
     int result = func(5, 3);
-    zip_add.re_encrypt_function();
+    add_numbers_zip.re_encrypt_function();
     
     std::cout << "Encrypted function result: 5 + 3 = " << result << std::endl;
     
