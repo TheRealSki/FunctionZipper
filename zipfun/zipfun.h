@@ -4,56 +4,77 @@
 #include <cstddef>
 #include <string>
 #include <vector>
+#include <thread>
+#include <functional>
+#include <future>
+#include <mutex>
+#include <type_traits>
 
-class ZipFun {
-private:
-    std::string function_id;
+// Helper for function size (must be provided by user or macro)
+constexpr size_t get_func_size(const void* start, const void* end) {
+    return static_cast<const char*>(end) - static_cast<const char*>(start);
+}
+
+// Templated ZipFun class
+// Signature: R(Args...)
+template<typename FuncSig>
+class ZipFun;
+
+// Specialization for functions returning non-void
+// (R != void)
+template<typename R, typename... Args>
+class ZipFun<R(Args...)> {
     std::vector<unsigned char> encrypted_code;
-    std::vector<unsigned char> function_copy;
-    void* original_function_ptr;
-    void* function_copy_ptr;
-    size_t function_size;
-    
-    // Helper methods
-    std::string generate_function_id(const void* func_ptr);
-    std::string get_encrypted_file_path();
-    void save_encrypted_function();
-    void load_encrypted_function();
+    void* exec_mem = nullptr;
+    size_t func_size;
+    std::mutex mtx;
+    using FuncPtr = R(*)(Args...);
+    FuncPtr original_func;
+
+    static constexpr unsigned char ENCRYPTION_KEY[8] = {0x5A, 0x3F, 0x8B, 0x2E, 0x7C, 0x1A, 0x9D, 0x4F};
+
     void* allocate_executable_memory(size_t size);
+    void encrypt(const void* code, size_t size);
+    void decrypt();
+    void re_encrypt();
+    void clear_exec_mem();
 
 public:
-    // Constructor takes a function pointer and function size, then encrypts it
-    ZipFun(void* func_ptr, size_t func_size);
-    
-    // Destructor
+    ZipFun(FuncPtr func, size_t size);
     ~ZipFun();
-    
-    // Encryption/decryption methods
-    void encrypt_function(const void* func_ptr, size_t size);
-    void decrypt_function();
-    void re_encrypt_function();
-    
-    // Get the copy function pointer for casting
-    void* get_function_ptr() const { return function_copy_ptr; }
+    R call(Args... args);
 };
 
-// Macro to declare a function with ZipFun wrapper
-#define ZIPFUN_DECLARE(name, ret_type, ...) \
+// Specialization for void-returning functions
+// (R == void)
+template<typename... Args>
+class ZipFun<void(Args...)> {
+    std::vector<unsigned char> encrypted_code;
+    void* exec_mem = nullptr;
+    size_t func_size;
+    std::mutex mtx;
+    using FuncPtr = void(*)(Args...);
+    FuncPtr original_func;
+
+    static constexpr unsigned char ENCRYPTION_KEY[8] = {0x5A, 0x3F, 0x8B, 0x2E, 0x7C, 0x1A, 0x9D, 0x4F};
+
+    void* allocate_executable_memory(size_t size);
+    void encrypt(const void* code, size_t size);
+    void decrypt();
+    void re_encrypt();
+    void clear_exec_mem();
+
+public:
+    ZipFun(FuncPtr func, size_t size);
+    ~ZipFun();
+    void call(Args... args);
+};
+
+// Macro to help declare a function and its size for ZipFun
+#define ZIPFUN_WRAP(name, ret_type, ...) \
     ret_type name(__VA_ARGS__); \
     extern "C" void name##_end(); \
-    extern ZipFun name##_zip
-
-// Macro to define a function with ZipFun wrapper
-#define ZIPFUN_DEFINE(name, ret_type, ...) \
-    ret_type name(__VA_ARGS__); \
-    extern "C" void name##_end() {} \
-    ZipFun name##_zip(reinterpret_cast<void*>(name), (size_t)((char*)name##_end - (char*)name)); \
-    ret_type name(__VA_ARGS__)
-
-// Simple macro for single-file usage
-#define ZIPFUN(name, ret_type, ...) \
-    ret_type name(__VA_ARGS__); \
-    extern "C" void name##_end() {} \
+    static ZipFun<ret_type(__VA_ARGS__)> name##_zip(name, get_func_size((void*)name, (void*)name##_end)); \
     ret_type name(__VA_ARGS__)
 
 #endif // ZIPFUN_H 
